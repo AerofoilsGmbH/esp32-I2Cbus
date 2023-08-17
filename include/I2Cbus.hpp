@@ -25,36 +25,35 @@ IN THE SOFTWARE.
 #define _I2CBUS_HPP_
 
 #include <stdint.h>
-#include "driver/i2c.h"
-#include "driver/gpio.h"
-#include "esp_err.h"
 
+#include "driver/gpio.h"
+#include "driver/i2c.h"
+#include "esp_err.h"
 
 /* ^^^^^^
  * I2Cbus
  * ^^^^^^ */
 namespace i2cbus {
-constexpr uint32_t kDefaultClockSpeed = 100000;  /*!< Clock speed in Hz, default: 100KHz */
-constexpr uint32_t kDefaultTimeout = 1000;       /*!< Timeout in milliseconds, default: 1000ms */
+constexpr uint32_t kDefaultClockSpeed = 100000; /*!< Clock speed in Hz, default: 100KHz */
+constexpr uint32_t kDefaultTimeout = 1000;      /*!< Timeout in milliseconds, default: 1000ms */
 class I2C;
-}  // namespace i2cbus
+}   // namespace i2cbus
 
 // I2Cbus type
 using I2C_t = i2cbus::I2C;
 
 // Default Objects
-extern I2C_t i2c0;        /*!< port: I2C_NUM_0 */
-extern I2C_t i2c1;        /*!< port: I2C_NUM_1 */
-
+extern I2C_t i2c0; /*!< port: I2C_NUM_0 */
+extern I2C_t i2c1; /*!< port: I2C_NUM_1 */
 
 // I2C class definition
 namespace i2cbus {
 class I2C {
- private:
-    i2c_port_t port;            /*!< I2C port: I2C_NUM_0 or I2C_NUM_1 */
-    uint32_t ticksToWait;       /*!< Timeout in ticks for read and write */
+   private:
+    i2c_port_t port;      /*!< I2C port: I2C_NUM_0 or I2C_NUM_1 */
+    uint32_t ticksToWait; /*!< Timeout in ticks for read and write */
 
- public:
+   public:
     explicit I2C(i2c_port_t port);
     ~I2C();
 
@@ -64,17 +63,18 @@ class I2C {
      * @param  scl_io_num    [GPIO number for SCL line]
      * @param  sda_pullup_en [Enable internal pullup on SDA line]
      * @param  scl_pullup_en [Enable internal pullup on SCL line]
-     * @param  clk_speed     [I2C clock frequency for master mode, (no higher than 1MHz for now), Default 100KHz]
+     * @param  clk_speed     [I2C clock frequency for master mode, (no higher than 1MHz for now),
+     * Default 100KHz]
      *                       @see "driver/i2c.h"
      * @return               - ESP_OK   Success
      *                       - ESP_ERR_INVALID_ARG Parameter error
      *                       - ESP_FAIL Driver install error
      */
-    esp_err_t begin(gpio_num_t sda_io_num, gpio_num_t scl_io_num, uint32_t clk_speed = kDefaultClockSpeed);
-
     esp_err_t begin(gpio_num_t sda_io_num, gpio_num_t scl_io_num,
-                    gpio_pullup_t sda_pullup_en, gpio_pullup_t scl_pullup_en,
                     uint32_t clk_speed = kDefaultClockSpeed);
+
+    esp_err_t begin(gpio_num_t sda_io_num, gpio_num_t scl_io_num, gpio_pullup_t sda_pullup_en,
+                    gpio_pullup_t scl_pullup_en, uint32_t clk_speed = kDefaultClockSpeed);
 
     /**
      * Stop I2C bus and unninstall driver
@@ -85,7 +85,6 @@ class I2C {
      * Timeout read and write in milliseconds
      */
     void setTimeout(uint32_t ms);
-
 
     /**
      * *** WRITING interface ***
@@ -106,10 +105,13 @@ class I2C {
      *          - ESP_ERR_INVALID_STATE I2C driver not installed or not in master mode.
      *          - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.
      */
-    esp_err_t writeBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data, int32_t timeout = -1);
-    esp_err_t writeBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data, int32_t timeout = -1);
+    esp_err_t writeBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data,
+                       int32_t timeout = -1);
+    esp_err_t writeBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length,
+                        uint8_t data, int32_t timeout = -1);
     esp_err_t writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t timeout = -1);
-    esp_err_t writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data, int32_t timeout = -1);
+    esp_err_t writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data,
+                         int32_t timeout = -1);
 
     /**
      * *** READING interface ***
@@ -129,10 +131,13 @@ class I2C {
      *          - ESP_ERR_INVALID_STATE I2C driver not installed or not in master mode.
      *          - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.]
      */
-    esp_err_t readBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data, int32_t timeout = -1);
-    esp_err_t readBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data, int32_t timeout = -1);
+    esp_err_t readBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data,
+                      int32_t timeout = -1);
+    esp_err_t readBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length,
+                       uint8_t *data, int32_t timeout = -1);
     esp_err_t readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, int32_t timeout = -1);
-    esp_err_t readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data, int32_t timeout = -1);
+    esp_err_t readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
+                        int32_t timeout = -1);
 
     /**
      * @brief  Quick check to see if a slave device responds.
@@ -152,14 +157,9 @@ class I2C {
     void scanner();
 };
 
-}  // namespace i2cbus
-
+}   // namespace i2cbus
 
 /* Get default objects */
-constexpr I2C_t& getI2C(i2c_port_t port) {
-    return port == 0 ? i2c0 : i2c1;
-}
-
-
+constexpr I2C_t &getI2C(i2c_port_t port) { return port == 0 ? i2c0 : i2c1; }
 
 #endif /* end of include guard: _I2CBUS_H_ */
