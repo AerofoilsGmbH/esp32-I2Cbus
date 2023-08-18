@@ -23,6 +23,7 @@ IN THE SOFTWARE.
 
 #include "I2Cbus.hpp"
 
+#include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -32,11 +33,11 @@ IN THE SOFTWARE.
 #include "esp_log.h"
 #include "sdkconfig.h"
 
-#if defined CONFIG_I2CBUS_LOG_RW_LEVEL_INFO
+#if defined(CONFIG_I2CBUS_LOG_RW_LEVEL_INFO)
 #define I2CBUS_LOG_RW(format, ...) ESP_LOGI(TAG, format, ##__VA_ARGS__)
-#elif defined CONFIG_I2CBUS_LOG_RW_LEVEL_DEBUG
+#elif defined(CONFIG_I2CBUS_LOG_RW_LEVEL_DEBUG)
 #define I2CBUS_LOG_RW(format, ...) ESP_LOGD(TAG, format, ##__VA_ARGS__)
-#elif defined CONFIG_I2CBUS_LOG_RW_LEVEL_VERBOSE
+#elif defined(CONFIG_I2CBUS_LOG_RW_LEVEL_VERBOSE)
 #define I2CBUS_LOG_RW(format, ...) ESP_LOGV(TAG, format, ##__VA_ARGS__)
 #endif
 #define I2CBUS_LOGE(format, ...) ESP_LOGE(TAG, format, ##__VA_ARGS__)
@@ -44,7 +45,7 @@ IN THE SOFTWARE.
 #define I2C_MASTER_ACK_EN true   /*!< Enable ack check for master */
 #define I2C_MASTER_ACK_DIS false /*!< Disable ack check for master */
 
-static const char *TAG __attribute__((unused)) = "I2Cbus";
+#define TAG "I2Cbus"
 
 /*******************************************************************************
  * OBJECTS
@@ -60,9 +61,6 @@ namespace i2cbus {
 /*******************************************************************************
  * SETUP
  ******************************************************************************/
-I2C::I2C(i2c_port_t port) : port{port}, ticksToWait{pdMS_TO_TICKS(kDefaultTimeout)} {}
-
-I2C::~I2C() { close(); }
 
 esp_err_t I2C::begin(gpio_num_t sda_io_num, gpio_num_t scl_io_num, uint32_t clk_speed) {
     return begin(sda_io_num, scl_io_num, GPIO_PULLUP_ENABLE, GPIO_PULLUP_ENABLE, clk_speed);
@@ -78,14 +76,35 @@ esp_err_t I2C::begin(gpio_num_t sda_io_num, gpio_num_t scl_io_num, gpio_pullup_t
     conf.scl_pullup_en = scl_pullup_en;
     conf.master.clk_speed = clk_speed;
     conf.clk_flags = 0;
-    esp_err_t err = i2c_param_config(port, &conf);
-    if (!err) err = i2c_driver_install(port, conf.mode, 0, 0, 0);
+
+    esp_err_t err = i2c_param_config(_port, &conf);
+    if (err == ESP_OK) {
+        err = i2c_driver_install(_port, conf.mode, 0, 0, 0);
+    } else {
+        ESP_LOGE(TAG, "i2c_param_config failed: %s", esp_err_to_name(err));
+    }
+
+    if (err == ESP_OK) {
+        _installed = true;
+    } else {
+        ESP_LOGE(TAG, "i2c_driver_install failed: %s", esp_err_to_name(err));
+    }
+
     return err;
 }
 
-esp_err_t I2C::close() { return i2c_driver_delete(port); }
+esp_err_t I2C::close() {
+    esp_err_t returnVal = ESP_ERR_INVALID_STATE;
 
-void I2C::setTimeout(uint32_t ms) { ticksToWait = pdMS_TO_TICKS(ms); }
+    if (_installed) {
+        returnVal = i2c_driver_delete(_port);
+        _installed = false;
+    }
+
+    return returnVal;
+}
+
+void I2C::setTimeout(uint32_t ms) { _ticksToWait = pdMS_TO_TICKS(ms); }
 
 /*******************************************************************************
  * WRITING
@@ -116,18 +135,20 @@ esp_err_t I2C::writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t
     return writeBytes(devAddr, regAddr, 1, &data, timeout);
 }
 
-esp_err_t I2C::writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data,
+esp_err_t I2C::writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
                           int32_t timeout) {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
     i2c_master_write_byte(cmd, regAddr, I2C_MASTER_ACK_EN);
-    i2c_master_write(cmd, (uint8_t *)data, length, I2C_MASTER_ACK_EN);
+    if (length > 0) i2c_master_write(cmd, data, length, I2C_MASTER_ACK_EN);
     i2c_master_stop(cmd);
+
     esp_err_t err =
-        i2c_master_cmd_begin(port, cmd, (timeout < 0 ? ticksToWait : pdMS_TO_TICKS(timeout)));
+        i2c_master_cmd_begin(_port, cmd, (timeout < 0 ? _ticksToWait : pdMS_TO_TICKS(timeout)));
+
     i2c_cmd_link_delete(cmd);
-#if defined CONFIG_I2CBUS_LOG_READWRITES
+#if defined(CONFIG_I2CBUS_LOG_READWRITES)
     if (!err) {
         char str[length * 5 + 1];
         for (size_t i = 0; i < length; i++)
@@ -136,14 +157,14 @@ esp_err_t I2C::writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, const
                       devAddr, length, regAddr, str);
     }
 #endif
-#if defined CONFIG_I2CBUS_LOG_ERRORS
-#if defined CONFIG_I2CBUS_LOG_READWRITES
+#if defined(CONFIG_I2CBUS_LOG_ERRORS)
+#if defined(CONFIG_I2CBUS_LOG_READWRITES)
     else {
 #else
     if (err) {
 #endif
         I2CBUS_LOGE(
-            "[port:%d, slave:0x%X] Failed to write %d bytes to__ register 0x%X, error: 0x%X", port,
+            "[port:%d, slave:0x%X] Failed to write %d bytes to__ register 0x%X, error: 0x%X", _port,
             devAddr, length, regAddr, err);
     }
 #endif
@@ -186,9 +207,9 @@ esp_err_t I2C::readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_
     i2c_master_read(cmd, data, length, I2C_MASTER_LAST_NACK);
     i2c_master_stop(cmd);
     esp_err_t err =
-        i2c_master_cmd_begin(port, cmd, (timeout < 0 ? ticksToWait : pdMS_TO_TICKS(timeout)));
+        i2c_master_cmd_begin(_port, cmd, (timeout < 0 ? _ticksToWait : pdMS_TO_TICKS(timeout)));
     i2c_cmd_link_delete(cmd);
-#if defined CONFIG_I2CBUS_LOG_READWRITES
+#if defined(CONFIG_I2CBUS_LOG_READWRITES)
     if (!err) {
         char str[length * 5 + 1];
         for (size_t i = 0; i < length; i++)
@@ -197,14 +218,14 @@ esp_err_t I2C::readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_
                       devAddr, length, regAddr, str);
     }
 #endif
-#if defined CONFIG_I2CBUS_LOG_ERRORS
-#if defined CONFIG_I2CBUS_LOG_READWRITES
+#if defined(CONFIG_I2CBUS_LOG_ERRORS)
+#if defined(CONFIG_I2CBUS_LOG_READWRITES)
     else {
 #else
     if (err) {
 #endif
         I2CBUS_LOGE("[port:%d, slave:0x%X] Failed to read %d bytes from register 0x%X, error: 0x%X",
-                    port, devAddr, length, regAddr, err);
+                    _port, devAddr, length, regAddr, err);
     }
 #endif
     return err;
@@ -219,7 +240,7 @@ esp_err_t I2C::testConnection(uint8_t devAddr, int32_t timeout) {
     i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
     i2c_master_stop(cmd);
     esp_err_t err =
-        i2c_master_cmd_begin(port, cmd, (timeout < 0 ? ticksToWait : pdMS_TO_TICKS(timeout)));
+        i2c_master_cmd_begin(_port, cmd, (timeout < 0 ? _ticksToWait : pdMS_TO_TICKS(timeout)));
     i2c_cmd_link_delete(cmd);
     return err;
 }

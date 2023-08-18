@@ -50,12 +50,15 @@ extern I2C_t i2c1; /*!< port: I2C_NUM_1 */
 namespace i2cbus {
 class I2C {
    private:
-    i2c_port_t port;      /*!< I2C port: I2C_NUM_0 or I2C_NUM_1 */
-    uint32_t ticksToWait; /*!< Timeout in ticks for read and write */
+    i2c_port_t _port;      /*!< I2C port: I2C_NUM_0 or I2C_NUM_1 */
+    uint32_t _ticksToWait; /*!< Timeout in ticks for read and write */
+    bool _installed = false;
 
    public:
-    explicit I2C(i2c_port_t port);
-    ~I2C();
+    explicit constexpr I2C(i2c_port_t port)
+        : _port(port), _ticksToWait(pdMS_TO_TICKS(kDefaultTimeout)) {}
+
+    inline ~I2C() { close(); }
 
     /** *** I2C Begin ***
      * @brief  Config I2C bus and Install Driver
@@ -110,7 +113,7 @@ class I2C {
     esp_err_t writeBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length,
                         uint8_t data, int32_t timeout = -1);
     esp_err_t writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t timeout = -1);
-    esp_err_t writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data,
+    esp_err_t writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
                          int32_t timeout = -1);
 
     /**
