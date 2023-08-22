@@ -29,13 +29,15 @@ IN THE SOFTWARE.
 #include "driver/gpio.h"
 #include "driver/i2c.h"
 #include "esp_err.h"
+#include "sdkconfig.h"
 
 /* ^^^^^^
  * I2Cbus
  * ^^^^^^ */
 namespace i2cbus {
-constexpr uint32_t kDefaultClockSpeed = 100000; /*!< Clock speed in Hz, default: 100KHz */
-constexpr uint32_t kDefaultTimeout = 1000;      /*!< Timeout in milliseconds, default: 1000ms */
+constexpr uint32_t kDefaultClockSpeed =
+    CONFIG_BUS_SPEED_KHZ * 1000;           /*!< Clock speed in Hz, default: 100KHz */
+constexpr uint32_t kDefaultTimeout = 1000; /*!< Timeout in milliseconds, default: 1000ms */
 class I2C;
 }   // namespace i2cbus
 
@@ -109,12 +111,12 @@ class I2C {
      *          - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.
      */
     esp_err_t writeBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data,
-                       int32_t timeout = -1);
+                       int32_t timeout = -1) const;
     esp_err_t writeBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length,
-                        uint8_t data, int32_t timeout = -1);
-    esp_err_t writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t timeout = -1);
+                        uint8_t data, int32_t timeout = -1) const;
+    esp_err_t writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t timeout = -1) const;
     esp_err_t writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
-                         int32_t timeout = -1);
+                         int32_t timeout = -1) const;
 
     /**
      * *** READING interface ***
@@ -135,12 +137,12 @@ class I2C {
      *          - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.]
      */
     esp_err_t readBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data,
-                      int32_t timeout = -1);
+                      int32_t timeout = -1) const;
     esp_err_t readBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length,
-                       uint8_t *data, int32_t timeout = -1);
-    esp_err_t readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, int32_t timeout = -1);
+                       uint8_t *data, int32_t timeout = -1) const;
+    esp_err_t readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, int32_t timeout = -1) const;
     esp_err_t readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
-                        int32_t timeout = -1);
+                        int32_t timeout = -1) const;
 
     /**
      * @brief  Quick check to see if a slave device responds.
@@ -152,12 +154,12 @@ class I2C {
      *          - ESP_ERR_INVALID_STATE I2C driver not installed or not in master mode.
      *          - ESP_ERR_TIMEOUT Operation timeout because the bus is busy.]
      */
-    esp_err_t testConnection(uint8_t devAddr, int32_t timeout = -1);
+    esp_err_t testConnection(uint8_t devAddr, int32_t timeout = -1) const;
 
     /**
      * I2C scanner utility, prints out all device addresses found on this I2C bus.
      */
-    void scanner();
+    void scanner() const;
 };
 
 }   // namespace i2cbus
