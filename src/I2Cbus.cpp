@@ -137,8 +137,9 @@ esp_err_t I2C::writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data, int32_t
 
 esp_err_t I2C::writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
                           int32_t timeout) const {
-    uint8_t _cmdLinkBuffer[(6 * 20) + 20 + 1];   // 20 for each link + 20 for cmd itself
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create_static(_cmdLinkBuffer, sizeof(_cmdLinkBuffer));
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+    if (cmd == NULL) return ESP_ERR_NO_MEM;
 
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
@@ -149,7 +150,7 @@ esp_err_t I2C::writeBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8
     esp_err_t err =
         i2c_master_cmd_begin(_port, cmd, (timeout < 0 ? _ticksToWait : pdMS_TO_TICKS(timeout)));
 
-    i2c_cmd_link_delete_static(cmd);
+    i2c_cmd_link_delete(cmd);
 #if defined(CONFIG_I2CBUS_LOG_READWRITES)
     if (!err) {
         char str[length * 5 + 1];
@@ -200,8 +201,9 @@ esp_err_t I2C::readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, int32_t
 
 esp_err_t I2C::readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data,
                          int32_t timeout) const {
-    uint8_t _cmdLinkBuffer[(8 * 20) + 20 + 1];   // 20 for each link + 20 for cmd itself
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create_static(_cmdLinkBuffer, sizeof(_cmdLinkBuffer));
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+    if (cmd == NULL) return ESP_ERR_NO_MEM;
 
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
@@ -214,7 +216,7 @@ esp_err_t I2C::readBytes(uint8_t devAddr, uint8_t regAddr, size_t length, uint8_
     esp_err_t err =
         i2c_master_cmd_begin(_port, cmd, (timeout < 0 ? _ticksToWait : pdMS_TO_TICKS(timeout)));
 
-    i2c_cmd_link_delete_static(cmd);
+    i2c_cmd_link_delete(cmd);
 #if defined(CONFIG_I2CBUS_LOG_READWRITES)
     if (!err) {
         char str[length * 5 + 1];
